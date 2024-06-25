@@ -1,3 +1,4 @@
+mod errors;
 mod lexer;
 
 use clap::Parser;
