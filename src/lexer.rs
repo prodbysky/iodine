@@ -6,7 +6,7 @@ use std::{
 };
 
 pub struct Lexer<'a> {
-    pub content: Peekable<Chars<'a>>,
+    content: Peekable<Chars<'a>>,
 }
 
 #[derive(Debug)]
