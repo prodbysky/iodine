@@ -5,6 +5,7 @@ use std::{
     str::{Chars, FromStr},
 };
 
+#[derive(Debug)]
 pub struct Lexer<'a> {
     content: Peekable<Chars<'a>>,
     source: &'a str,
@@ -26,11 +27,22 @@ pub enum Operator {
     Multiply,
 }
 
+impl Operator {
+    pub fn evaluate(&self, a: u64, b: u64) -> u64 {
+        match &self {
+            Self::Add => b + a,
+            Self::Subtract => b - a,
+            Self::Divide => b / a,
+            Self::Multiply => b * a,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
-pub enum ILToken<'a> {
-    String(&'a str),
-    Number(u64),
-    Symbol(&'a str),
+pub enum ILToken {
+    PushString(String),
+    PushNumber(u64),
+    Symbol(String),
     Operator(Operator),
 }
 
@@ -70,7 +82,7 @@ impl<'a> Lexer<'a> {
         let saved_pos = self.pos;
 
         while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
-            self.content.next().unwrap();
+            self.content.next();
             self.pos += 1;
         }
 
@@ -106,7 +118,7 @@ impl<'a> Lexer<'a> {
         self.pos += 1;
 
         let buffer = &self.source[saved_pos + 1..self.pos - 1];
-        if let None = self.content.next() {
+        if self.content.next().is_none() {
             return Err(UnterminatedStringError);
         }
 
@@ -129,13 +141,7 @@ impl<'a> Lexer<'a> {
     fn next_raw(&mut self) -> Option<Token<'a>> {
         self.trim_whitespace();
 
-        let current_char = self.content.peek();
-
-        if current_char == None {
-            return None;
-        }
-
-        let current_char = *current_char.unwrap();
+        let current_char = *self.content.peek()?;
 
         if current_char == '"' || current_char == '\'' {
             match self.parse_string() {
@@ -160,26 +166,20 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = ILToken<'a>;
+    type Item = ILToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let raw_token = self.next_raw();
-
-        if raw_token.is_none() {
-            return None;
-        }
-
-        let token = raw_token.unwrap();
+        let token = self.next_raw()?;
 
         match token {
-            Token::StringLiteral(str) => Some(ILToken::String(str)),
-            Token::NumericLiteral(num) => Some(ILToken::Number(num.parse::<u64>().unwrap())),
+            Token::StringLiteral(str) => Some(ILToken::PushString(str.to_string())),
+            Token::NumericLiteral(num) => Some(ILToken::PushNumber(num.parse::<u64>().unwrap())),
             Token::Symbol(name) => {
                 if let Ok(op) = Operator::from_str(name) {
                     return Some(ILToken::Operator(op));
                 }
 
-                Some(ILToken::Symbol(name))
+                Some(ILToken::Symbol(name.to_string()))
             }
         }
     }
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn parse_u64() {
         let lexer = Lexer::new("123");
-        let program = vec![ILToken::Number(123)];
+        let program = vec![ILToken::PushNumber(123)];
 
         assert_eq!(program, lexer.collect::<Vec<ILToken>>());
     }
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn parse_string() {
         let lexer = Lexer::new("\"Lotus\"");
-        let program = vec![ILToken::String("Lotus")];
+        let program = vec![ILToken::PushString("Lotus".to_string())];
 
         assert_eq!(program, lexer.collect::<Vec<ILToken>>());
     }
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn parse_symbol() {
         let lexer = Lexer::new("Lotus");
-        let program = vec![ILToken::Symbol("Lotus")];
+        let program = vec![ILToken::Symbol("Lotus".to_string())];
 
         assert_eq!(program, lexer.collect::<Vec<ILToken>>());
     }

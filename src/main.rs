@@ -1,5 +1,7 @@
 mod errors;
+mod interpreter;
 mod lexer;
+mod stack;
 
 use clap::Parser;
 
@@ -20,10 +22,7 @@ fn main() {
         return;
     }
     let source = source.unwrap();
-
-    let lexer = lexer::Lexer::new(&source);
-
-    for token in lexer {
-        println!("{:?}", token);
-    }
+    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source));
+    interpreter.run();
+    eprintln!("{:?}", interpreter);
 }
