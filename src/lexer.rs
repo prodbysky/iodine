@@ -1,16 +1,49 @@
 use crate::errors::NumberParseError;
-use std::{iter::Peekable, str::Chars};
+
+use std::{
+    iter::Peekable,
+    str::{Chars, FromStr},
+};
 
 pub struct Lexer<'a> {
     pub content: Peekable<Chars<'a>>,
 }
 
 #[derive(Debug)]
-pub enum Token {
-    Operator(String),
+enum Token {
     Symbol(String),
     NumericLiteral(String),
     StringLiteral(String),
+}
+
+#[derive(Debug)]
+pub enum Operator {
+    Add,
+    Subtract,
+    Divide,
+    Multiply,
+}
+
+#[derive(Debug)]
+pub enum ILToken {
+    String(String),
+    Number(u64),
+    Symbol(String),
+    Operator(Operator),
+}
+
+impl FromStr for Operator {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "+" => Ok(Self::Add),
+            "-" => Ok(Self::Subtract),
+            "/" => Ok(Self::Divide),
+            "*" => Ok(Self::Multiply),
+            _ => Err(()),
+        }
+    }
 }
 
 impl<'a> Lexer<'a> {
@@ -67,12 +100,8 @@ impl<'a> Lexer<'a> {
 
         Token::Symbol(buffer)
     }
-}
 
-impl Iterator for Lexer<'_> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next_raw(&mut self) -> Option<Token> {
         self.trim_whitespace();
 
         let current_char = self.content.peek();
@@ -97,5 +126,31 @@ impl Iterator for Lexer<'_> {
             }
         }
         return Some(self.parse_symbol());
+    }
+}
+
+impl Iterator for Lexer<'_> {
+    type Item = ILToken;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let raw_token = self.next_raw();
+
+        if raw_token.is_none() {
+            return None;
+        }
+
+        let token = raw_token.unwrap();
+
+        match token {
+            Token::StringLiteral(str) => Some(ILToken::String(str)),
+            Token::NumericLiteral(num) => Some(ILToken::Number(num.parse::<u64>().unwrap())),
+            Token::Symbol(name) => {
+                if let Ok(op) = Operator::from_str(name.as_str()) {
+                    return Some(ILToken::Operator(op));
+                }
+
+                Some(ILToken::Symbol(name))
+            }
+        }
     }
 }
