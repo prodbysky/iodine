@@ -1,4 +1,4 @@
-use crate::errors::NumberParseError;
+use crate::errors::{NumberParseError, UnterminatedStringError};
 
 use std::{
     iter::Peekable,
@@ -18,7 +18,7 @@ enum Token<'a> {
     StringLiteral(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Operator {
     Add,
     Subtract,
@@ -26,7 +26,7 @@ pub enum Operator {
     Multiply,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ILToken<'a> {
     String(&'a str),
     Number(u64),
@@ -87,7 +87,7 @@ impl<'a> Lexer<'a> {
     }
 
     // TODO: Escaped strings
-    fn parse_string(&mut self) -> Token<'a> {
+    fn parse_string(&mut self) -> Result<Token<'a>, UnterminatedStringError> {
         let saved_pos = self.pos;
 
         // Skip opening quote
@@ -103,12 +103,14 @@ impl<'a> Lexer<'a> {
         }
 
         // Skip closing quote
-        self.content.next();
         self.pos += 1;
 
         let buffer = &self.source[saved_pos + 1..self.pos - 1];
+        if let None = self.content.next() {
+            return Err(UnterminatedStringError);
+        }
 
-        Token::StringLiteral(buffer)
+        Ok(Token::StringLiteral(buffer))
     }
 
     fn parse_symbol(&mut self) -> Token<'a> {
@@ -136,7 +138,13 @@ impl<'a> Lexer<'a> {
         let current_char = *current_char.unwrap();
 
         if current_char == '"' || current_char == '\'' {
-            return Some(self.parse_string());
+            match self.parse_string() {
+                Ok(str) => return Some(str),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return None;
+                }
+            }
         }
         if current_char.is_ascii_digit() {
             match self.parse_number() {
@@ -174,5 +182,50 @@ impl<'a> Iterator for Lexer<'a> {
                 Some(ILToken::Symbol(name))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_program() {
+        let lexer = Lexer::new("");
+        let empty: Vec<ILToken> = vec![];
+
+        assert_eq!(empty, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
+    fn parse_u64() {
+        let lexer = Lexer::new("123");
+        let program = vec![ILToken::Number(123)];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
+    fn parse_string() {
+        let lexer = Lexer::new("\"Lotus\"");
+        let program = vec![ILToken::String("Lotus")];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
+    fn parse_symbol() {
+        let lexer = Lexer::new("Lotus");
+        let program = vec![ILToken::Symbol("Lotus")];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
+    fn unterminated_string() {
+        let lexer = Lexer::new("\"Lotus");
+        let program: Vec<ILToken> = vec![];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
     }
 }
