@@ -222,6 +222,14 @@ mod tests {
     }
 
     #[test]
+    fn invalid_number() {
+        let lexer = Lexer::new("6942O"); // Look at it closely
+        let program: Vec<ILToken> = vec![];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
     fn unterminated_string() {
         let lexer = Lexer::new("\"Lotus");
         let program: Vec<ILToken> = vec![];
