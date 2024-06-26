@@ -1,15 +1,16 @@
-use crate::errors::{Location, NumberParseError};
+use crate::errors::NumberParseError;
 use std::{iter::Peekable, str::Chars};
 
 pub struct Lexer<'a> {
     pub content: Peekable<Chars<'a>>,
-    location: Location,
 }
 
 #[derive(Debug)]
 pub enum Token {
-    Operator(Location, String),
-    NumericLiteral(Location, String),
+    Operator(String),
+    Symbol(String),
+    NumericLiteral(String),
+    StringLiteral(String),
 }
 
 impl<'a> Lexer<'a> {
@@ -17,73 +18,54 @@ impl<'a> Lexer<'a> {
         let string = string.trim();
         Self {
             content: string.chars().peekable(),
-            location: Location::new(1, 1),
         }
     }
 
     fn trim_whitespace(&mut self) {
         while self.content.peek().is_some_and(|x| x.is_whitespace()) {
-            if self.content.peek().is_some_and(|&x| x == ' ') {
-                self.location.column += 1;
-            }
-            if self.content.peek().is_some_and(|&x| x == '\n') {
-                self.location.row += 1;
-            }
-            if self.content.peek().is_some_and(|&x| x == '\t') {
-                self.location.column += 4;
-            }
             self.content.next();
         }
     }
 
-    // Currently only parses unsigned integers
     fn parse_number(&mut self) -> Result<Token, NumberParseError> {
-        let mut number = String::new();
-        let saved_loc = self.location;
+        // TODO: Floats, and negative numbers, and maybe hexadecimal values
+        let mut buffer = String::new();
 
-        number.push(self.content.next().unwrap());
-        self.location.column += 1;
-
-        for c in self.content.by_ref() {
-            if c == '_' {
-                continue;
-            }
-            if c.is_whitespace() {
-                self.location.column += 1;
-                break;
-            }
-            number.push(c);
-            self.location.column += 1;
+        while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
+            buffer.push(self.content.next().unwrap());
         }
 
-        for i in 0..number.len() {
-            if number.chars().nth(i).unwrap().is_alphabetic() {
-                return Err(NumberParseError(number, i, saved_loc));
+        for i in 0..buffer.len() {
+            let c = buffer.chars().nth(i).unwrap();
+            if c.is_alphabetic() || !c.is_ascii_digit() {
+                return Err(NumberParseError(buffer, i));
             }
         }
 
-        number = number.trim().to_string();
-        self.trim_whitespace();
-        Ok(Token::NumericLiteral(saved_loc, number))
+        Ok(Token::NumericLiteral(buffer))
     }
 
-    fn parse_operator(&mut self) -> Option<Token> {
-        let c = self.content.peek().cloned();
-        let saved_loc = self.location;
-        if c.is_none() || !"+-/*=".contains(c.unwrap()) {
-            return None;
+    // TODO: Escaped strings
+    fn parse_string(&mut self) -> Token {
+        let mut buffer = String::new();
+
+        while self.content.peek().is_some_and(|&x| x != '"' || x != '\'') {
+            buffer.push(self.content.next().unwrap());
         }
 
-        self.content.next();
-        self.location.column += 1;
-        match c.unwrap() {
-            '+' => Some(Token::Operator(saved_loc, "+".to_string())),
-            '-' => Some(Token::Operator(saved_loc, "-".to_string())),
-            '/' => Some(Token::Operator(saved_loc, "/".to_string())),
-            '*' => Some(Token::Operator(saved_loc, "*".to_string())),
-            '=' => Some(Token::Operator(saved_loc, "=".to_string())),
-            _ => None,
+        let buffer = buffer.trim_matches('\'').trim_matches('"');
+
+        Token::NumericLiteral(buffer.to_string())
+    }
+
+    fn parse_symbol(&mut self) -> Token {
+        let mut buffer = String::new();
+
+        while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
+            buffer.push(self.content.next().unwrap());
         }
+
+        Token::Symbol(buffer)
     }
 }
 
@@ -93,18 +75,27 @@ impl Iterator for Lexer<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         self.trim_whitespace();
 
-        self.content.peek()?;
+        let current_char = self.content.peek();
 
-        if let Some(operator) = self.parse_operator() {
-            Some(operator)
-        } else {
+        if current_char == None {
+            return None;
+        }
+
+        let current_char = *current_char.unwrap();
+
+        if current_char == '"' || current_char == '\'' {
+            return Some(self.parse_string());
+        }
+
+        if current_char.is_ascii_digit() {
             match self.parse_number() {
-                Ok(num) => Some(num),
+                Ok(num) => return Some(num),
                 Err(e) => {
                     eprintln!("{}", e);
-                    None
+                    return None;
                 }
             }
         }
+        return Some(self.parse_symbol());
     }
 }
