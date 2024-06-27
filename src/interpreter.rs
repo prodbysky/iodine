@@ -3,11 +3,12 @@ use crate::{
     stack::{self, Stack},
 };
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum StackValue {
     String(String),
     UnsignedInt(u64),
     SignedInt(i64),
+    Float(f64),
 }
 
 impl Default for StackValue {
@@ -31,6 +32,12 @@ impl From<u64> for StackValue {
 impl From<i64> for StackValue {
     fn from(value: i64) -> Self {
         Self::SignedInt(value)
+    }
+}
+
+impl From<f64> for StackValue {
+    fn from(value: f64) -> Self {
+        Self::Float(value)
     }
 }
 
@@ -58,6 +65,8 @@ impl<'a> Interpreter<'a> {
                 lexer::ILToken::PushSignedInteger(value) => {
                     self.push_value(StackValue::from(value))
                 }
+                lexer::ILToken::PushFloat(value) => self.push_value(StackValue::from(value)),
+
                 lexer::ILToken::Operator(op) => {
                     let a = self.pop_value().unwrap();
                     let b = self.pop_value().unwrap();
@@ -85,8 +94,7 @@ impl<'a> Interpreter<'a> {
     fn push_value(&mut self, value: StackValue) {
         match value {
             StackValue::String(str) => self.stack.push(StackValue::String(str.to_string())),
-            StackValue::UnsignedInt(_) => self.stack.push(value),
-            StackValue::SignedInt(_) => self.stack.push(value),
+            _ => self.stack.push(value),
         }
     }
 
