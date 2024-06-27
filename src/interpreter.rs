@@ -1,5 +1,5 @@
 use crate::{
-    lexer,
+    errors, lexer,
     stack::{self, Stack},
 };
 
@@ -41,12 +41,12 @@ impl From<f64> for StackValue {
     }
 }
 
-impl Into<f64> for StackValue {
-    fn into(self) -> f64 {
-        match self {
-            Self::Float(f) => f,
-            Self::SignedInt(f) => f as f64,
-            Self::UnsignedInt(f) => f as f64,
+impl From<StackValue> for f64 {
+    fn from(val: StackValue) -> Self {
+        match val {
+            StackValue::Float(f) => f,
+            StackValue::SignedInt(f) => f as f64,
+            StackValue::UnsignedInt(f) => f as f64,
             _ => unreachable!(),
         }
     }
@@ -66,24 +66,21 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), errors::EmptyStackError> {
+        use lexer::ILToken;
         while let Some(token) = self.lexer.next() {
             match token {
-                lexer::ILToken::PushString(value) => self.push_value(StackValue::from(value)),
-                lexer::ILToken::PushUnsignedInteger(value) => {
-                    self.push_value(StackValue::from(value))
-                }
-                lexer::ILToken::PushSignedInteger(value) => {
-                    self.push_value(StackValue::from(value))
-                }
-                lexer::ILToken::PushFloat(value) => self.push_value(StackValue::from(value)),
+                ILToken::PushString(value) => self.push_value(StackValue::from(value)),
+                ILToken::PushUnsignedInteger(value) => self.push_value(StackValue::from(value)),
+                ILToken::PushSignedInteger(value) => self.push_value(StackValue::from(value)),
+                ILToken::PushFloat(value) => self.push_value(StackValue::from(value)),
 
-                lexer::ILToken::Operator(op) => {
+                ILToken::Operator(op) => {
                     let a = self.pop_value().unwrap();
                     let b = self.pop_value().unwrap();
                     self.push_value(StackValue::Float(op.evaluate(a, b)));
                 }
-                lexer::ILToken::Symbol(name) => match name.as_str() {
+                ILToken::Symbol(name) => match name.as_str() {
                     "drop" => {
                         self.pop_value();
                     }
@@ -92,10 +89,13 @@ impl<'a> Interpreter<'a> {
                         self.push_value(t.clone());
                         self.push_value(t.clone());
                     }
-                    _ => {}
+                    _ => {
+                        eprintln!("Unknown word: {}", name)
+                    }
                 },
             }
         }
+        Ok(())
     }
 
     fn push_value(&mut self, value: StackValue) {
@@ -124,7 +124,7 @@ mod tests {
     fn empty_program() {
         let lexer = Lexer::new("");
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let expected_stack: Stack<StackValue> = Stack::new();
         let stack = interpreter.get_stack();
@@ -136,7 +136,7 @@ mod tests {
         let src = "0 1 2 3 4 5 6 7 8 9";
         let lexer = Lexer::new(src);
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         for i in 0..=9 {
@@ -151,7 +151,7 @@ mod tests {
         let src = "\"Hello :D\"";
         let lexer = Lexer::new(src);
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         expected_stack.push(String::from("Hello :D").into());
@@ -164,7 +164,7 @@ mod tests {
         let src = "1 1 + 3 1 - 1 2 * 8 4 /";
         let lexer = Lexer::new(src);
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         for _ in 0..4 {
@@ -179,7 +179,7 @@ mod tests {
         let src = "6 9 9 drop";
         let lexer = Lexer::new(src);
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         expected_stack.push(StackValue::UnsignedInt(6));
@@ -193,7 +193,7 @@ mod tests {
         let src = "6 9 9 dup";
         let lexer = Lexer::new(src);
         let mut interpreter = Interpreter::new(lexer);
-        interpreter.run();
+        interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         expected_stack.push(StackValue::UnsignedInt(6));

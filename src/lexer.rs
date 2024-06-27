@@ -211,12 +211,30 @@ impl<'a> Iterator for Lexer<'a> {
             Token::StringLiteral(str) => Some(ILToken::PushString(str.to_string())),
             Token::NumericLiteral(num) => {
                 if num.contains('.') {
-                    return Some(ILToken::PushFloat(num.parse::<f64>().unwrap()));
+                    match num.parse::<f64>() {
+                        Ok(num) => return Some(ILToken::PushFloat(num)),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            return None;
+                        }
+                    }
                 }
                 if num.chars().nth(0).is_some_and(|x| x == '-') {
-                    return Some(ILToken::PushSignedInteger(num.parse::<i64>().unwrap()));
+                    match num.parse::<i64>() {
+                        Ok(num) => return Some(ILToken::PushSignedInteger(num)),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            return None;
+                        }
+                    }
                 }
-                Some(ILToken::PushUnsignedInteger(num.parse::<u64>().unwrap()))
+                match num.parse::<u64>() {
+                    Ok(num) => Some(ILToken::PushUnsignedInteger(num)),
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        None
+                    }
+                }
             }
             Token::Symbol(name) => {
                 if let Ok(op) = Operator::from_str(name) {

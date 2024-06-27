@@ -4,6 +4,8 @@ use core::fmt;
 pub struct NumberParseError(pub String, pub usize);
 #[derive(Debug, Clone)]
 pub struct UnterminatedStringError;
+#[derive(Debug)]
+pub struct EmptyStackError;
 
 impl fmt::Display for NumberParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -21,5 +23,11 @@ impl fmt::Display for NumberParseError {
 impl fmt::Display for UnterminatedStringError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Unterminated string")
+    }
+}
+
+impl fmt::Display for EmptyStackError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Empty stack during execution")
     }
 }
