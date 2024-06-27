@@ -6,12 +6,13 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StackValue {
     String(String),
-    Number(u64),
+    UnsignedInt(u64),
+    SignedInt(i64),
 }
 
 impl Default for StackValue {
     fn default() -> Self {
-        Self::Number(0)
+        Self::SignedInt(0)
     }
 }
 
@@ -23,7 +24,13 @@ impl From<String> for StackValue {
 
 impl From<u64> for StackValue {
     fn from(value: u64) -> Self {
-        Self::Number(value)
+        Self::UnsignedInt(value)
+    }
+}
+
+impl From<i64> for StackValue {
+    fn from(value: i64) -> Self {
+        Self::SignedInt(value)
     }
 }
 
@@ -45,12 +52,17 @@ impl<'a> Interpreter<'a> {
         while let Some(token) = self.lexer.next() {
             match token {
                 lexer::ILToken::PushString(value) => self.push_value(StackValue::from(value)),
-                lexer::ILToken::PushNumber(value) => self.push_value(StackValue::from(value)),
+                lexer::ILToken::PushUnsignedInteger(value) => {
+                    self.push_value(StackValue::from(value))
+                }
+                lexer::ILToken::PushSignedInteger(value) => {
+                    self.push_value(StackValue::from(value))
+                }
                 lexer::ILToken::Operator(op) => {
                     let a = self.pop_value().unwrap();
                     let b = self.pop_value().unwrap();
-                    if let StackValue::Number(a) = a {
-                        if let StackValue::Number(b) = b {
+                    if let StackValue::UnsignedInt(a) = a {
+                        if let StackValue::UnsignedInt(b) = b {
                             self.push_value(op.evaluate(a, b).into())
                         }
                     }
@@ -73,7 +85,8 @@ impl<'a> Interpreter<'a> {
     fn push_value(&mut self, value: StackValue) {
         match value {
             StackValue::String(str) => self.stack.push(StackValue::String(str.to_string())),
-            StackValue::Number(num) => self.stack.push(StackValue::Number(num)),
+            StackValue::UnsignedInt(_) => self.stack.push(value),
+            StackValue::SignedInt(_) => self.stack.push(value),
         }
     }
 
@@ -112,7 +125,7 @@ mod tests {
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         for i in 0..=9 {
-            expected_stack.push(StackValue::Number(i));
+            expected_stack.push(StackValue::UnsignedInt(i));
         }
 
         assert_eq!(&expected_stack, interpreter.get_stack());
@@ -140,7 +153,7 @@ mod tests {
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         for _ in 0..4 {
-            expected_stack.push(StackValue::Number(2));
+            expected_stack.push(StackValue::UnsignedInt(2));
         }
 
         assert_eq!(&expected_stack, interpreter.get_stack());
@@ -154,8 +167,8 @@ mod tests {
         interpreter.run();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
-        expected_stack.push(StackValue::Number(6));
-        expected_stack.push(StackValue::Number(9));
+        expected_stack.push(StackValue::UnsignedInt(6));
+        expected_stack.push(StackValue::UnsignedInt(9));
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }
@@ -168,10 +181,10 @@ mod tests {
         interpreter.run();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
-        expected_stack.push(StackValue::Number(6));
-        expected_stack.push(StackValue::Number(9));
-        expected_stack.push(StackValue::Number(9));
-        expected_stack.push(StackValue::Number(9));
+        expected_stack.push(StackValue::UnsignedInt(6));
+        expected_stack.push(StackValue::UnsignedInt(9));
+        expected_stack.push(StackValue::UnsignedInt(9));
+        expected_stack.push(StackValue::UnsignedInt(9));
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }

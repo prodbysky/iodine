@@ -41,7 +41,8 @@ impl Operator {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ILToken {
     PushString(String),
-    PushNumber(u64),
+    PushUnsignedInteger(u64),
+    PushSignedInteger(i64),
     Symbol(String),
     Operator(Operator),
 }
@@ -80,6 +81,12 @@ impl<'a> Lexer<'a> {
     fn parse_number(&mut self) -> Result<Token<'a>, NumberParseError> {
         // TODO: Floats, and negative numbers, and maybe hexadecimal values
         let saved_pos = self.pos;
+        let negative = self.content.peek().is_some_and(|&x| x == '-');
+
+        if negative {
+            self.content.next();
+            self.pos += 1;
+        }
 
         while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
             self.content.next();
@@ -88,7 +95,11 @@ impl<'a> Lexer<'a> {
 
         let buffer = &self.source[saved_pos..self.pos];
 
-        for i in 0..buffer.len() {
+        if negative && buffer.len() == 1 {
+            return Err(NumberParseError(buffer.to_string(), 0));
+        }
+
+        for i in negative as usize..buffer.len() {
             let c = buffer.chars().nth(i).unwrap();
             if c.is_alphabetic() || !c.is_ascii_digit() {
                 return Err(NumberParseError(buffer.to_string(), i));
@@ -143,6 +154,13 @@ impl<'a> Lexer<'a> {
 
         let current_char = *self.content.peek()?;
 
+        // HACK: Hack to correctly differenciate `-` operator from negative sign of signed integer
+        let mut cloned = self.content.clone();
+        cloned.next();
+        let next_char = cloned.next();
+
+        eprintln!("{:?} {:?}", current_char, next_char);
+
         if current_char == '"' || current_char == '\'' {
             match self.parse_string() {
                 Ok(str) => return Some(str),
@@ -152,7 +170,9 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        if current_char.is_ascii_digit() {
+        if current_char.is_ascii_digit()
+            || (current_char == '-' && next_char.is_some_and(|x| x.is_ascii_digit()))
+        {
             match self.parse_number() {
                 Ok(num) => return Some(num),
                 Err(e) => {
@@ -173,7 +193,12 @@ impl<'a> Iterator for Lexer<'a> {
 
         match token {
             Token::StringLiteral(str) => Some(ILToken::PushString(str.to_string())),
-            Token::NumericLiteral(num) => Some(ILToken::PushNumber(num.parse::<u64>().unwrap())),
+            Token::NumericLiteral(num) => {
+                if num.chars().nth(0).is_some_and(|x| x == '-') {
+                    return Some(ILToken::PushSignedInteger(num.parse::<i64>().unwrap()));
+                }
+                Some(ILToken::PushUnsignedInteger(num.parse::<u64>().unwrap()))
+            }
             Token::Symbol(name) => {
                 if let Ok(op) = Operator::from_str(name) {
                     return Some(ILToken::Operator(op));
@@ -200,7 +225,15 @@ mod tests {
     #[test]
     fn parse_u64() {
         let lexer = Lexer::new("123");
-        let program = vec![ILToken::PushNumber(123)];
+        let program = vec![ILToken::PushUnsignedInteger(123)];
+
+        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+    }
+
+    #[test]
+    fn parse_i64() {
+        let lexer = Lexer::new("-123");
+        let program = vec![ILToken::PushSignedInteger(-123)];
 
         assert_eq!(program, lexer.collect::<Vec<ILToken>>());
     }
