@@ -41,6 +41,17 @@ impl From<f64> for StackValue {
     }
 }
 
+impl Into<f64> for StackValue {
+    fn into(self) -> f64 {
+        match self {
+            Self::Float(f) => f,
+            Self::SignedInt(f) => f as f64,
+            Self::UnsignedInt(f) => f as f64,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Interpreter<'a> {
     lexer: lexer::Lexer<'a>,
@@ -70,11 +81,7 @@ impl<'a> Interpreter<'a> {
                 lexer::ILToken::Operator(op) => {
                     let a = self.pop_value().unwrap();
                     let b = self.pop_value().unwrap();
-                    if let StackValue::UnsignedInt(a) = a {
-                        if let StackValue::UnsignedInt(b) = b {
-                            self.push_value(op.evaluate(a, b).into())
-                        }
-                    }
+                    self.push_value(StackValue::Float(op.evaluate(a, b)));
                 }
                 lexer::ILToken::Symbol(name) => match name.as_str() {
                     "drop" => {
@@ -161,7 +168,7 @@ mod tests {
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         for _ in 0..4 {
-            expected_stack.push(StackValue::UnsignedInt(2));
+            expected_stack.push(StackValue::Float(2.0));
         }
 
         assert_eq!(&expected_stack, interpreter.get_stack());

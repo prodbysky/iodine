@@ -1,4 +1,7 @@
-use crate::errors::{NumberParseError, UnterminatedStringError};
+use crate::{
+    errors::{NumberParseError, UnterminatedStringError},
+    interpreter::StackValue,
+};
 
 use std::{
     iter::Peekable,
@@ -28,7 +31,10 @@ pub enum Operator {
 }
 
 impl Operator {
-    pub fn evaluate(&self, a: u64, b: u64) -> u64 {
+    // NOTE: Currently all math operations coerce to f64
+    pub fn evaluate(&self, a: StackValue, b: StackValue) -> f64 {
+        let a: f64 = a.into();
+        let b: f64 = b.into();
         match &self {
             Self::Add => b + a,
             Self::Subtract => b - a,
