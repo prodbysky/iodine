@@ -3,7 +3,7 @@ use crate::{
     stack::{self, Stack},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StackValue {
     String(String),
     Number(u64),
@@ -55,7 +55,17 @@ impl<'a> Interpreter<'a> {
                         }
                     }
                 }
-                _ => {}
+                lexer::ILToken::Symbol(name) => match name.as_str() {
+                    "drop" => {
+                        self.pop_value();
+                    }
+                    "dup" => {
+                        let t = self.pop_value().unwrap();
+                        self.push_value(t.clone());
+                        self.push_value(t.clone());
+                    }
+                    _ => {}
+                },
             }
         }
     }
@@ -132,6 +142,36 @@ mod tests {
         for _ in 0..4 {
             expected_stack.push(StackValue::Number(2));
         }
+
+        assert_eq!(&expected_stack, interpreter.get_stack());
+    }
+
+    #[test]
+    fn drop() {
+        let src = "6 9 9 drop";
+        let lexer = Lexer::new(src);
+        let mut interpreter = Interpreter::new(lexer);
+        interpreter.run();
+
+        let mut expected_stack: Stack<StackValue> = Stack::new();
+        expected_stack.push(StackValue::Number(6));
+        expected_stack.push(StackValue::Number(9));
+
+        assert_eq!(&expected_stack, interpreter.get_stack());
+    }
+
+    #[test]
+    fn dup() {
+        let src = "6 9 9 dup";
+        let lexer = Lexer::new(src);
+        let mut interpreter = Interpreter::new(lexer);
+        interpreter.run();
+
+        let mut expected_stack: Stack<StackValue> = Stack::new();
+        expected_stack.push(StackValue::Number(6));
+        expected_stack.push(StackValue::Number(9));
+        expected_stack.push(StackValue::Number(9));
+        expected_stack.push(StackValue::Number(9));
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }
