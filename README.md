@@ -18,10 +18,10 @@
 ```
 
 ## Features
- - Basic math operations (See [quirks](##quirks))
+ - Basic math operations (See [quirks](#quirks))
  - Signed / unsigned integers, floating point numbers
  - Strings (They don't serve any purpose for now)
- - Dumb comments (See [quirks](##quirks))
+ - Dumb comments (See [quirks](#quirks))
  - Simple stack operations (drop, dup)
 
 ## Quirks
