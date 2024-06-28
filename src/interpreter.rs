@@ -295,4 +295,17 @@ mod tests {
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }
+
+    #[test]
+    fn if_statement() {
+        let src = "18 15 > if \"You are underage\" end";
+        let lexer = Lexer::new(src);
+        let mut interpreter = Interpreter::new(lexer, None, None);
+        interpreter.run().unwrap();
+
+        let mut expected_stack: Stack<StackValue> = Stack::new();
+        expected_stack.push("You are underage".to_owned().into());
+
+        assert_eq!(&expected_stack, interpreter.get_stack());
+    }
 }
