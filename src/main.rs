@@ -23,7 +23,7 @@ fn main() {
         return;
     }
     let source = source.unwrap();
-    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source));
+    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source), None, None);
     match interpreter.run() {
         Ok(()) => {}
         Err(e) => eprintln!("{}", e),

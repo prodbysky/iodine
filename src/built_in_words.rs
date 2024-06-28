@@ -44,29 +44,34 @@ pub fn word_dup(interpreter: &mut Interpreter) {
 
 pub fn word_print(interpreter: &mut Interpreter) {
     let t = interpreter.pop_value().unwrap();
-    println!("{}", t)
+    writeln!(interpreter.output, "{}", t).unwrap();
 }
 
 pub fn word_get_line(interpreter: &mut Interpreter) {
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
+    let mut buf = vec![];
+    let _ = interpreter.input.read_until(b' ', &mut buf).unwrap();
+    let buf: String = String::from_utf8(buf).unwrap();
     interpreter.push_value(buf.into())
 }
 
 pub fn word_get_int(interpreter: &mut Interpreter) {
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
+    let mut buf = vec![];
+    let _ = interpreter.input.read_until(b' ', &mut buf).unwrap();
+    let buf: String = String::from_utf8(buf).unwrap();
+
     interpreter.push_value(buf.trim_end().parse::<i64>().unwrap().into())
 }
 
 pub fn word_get_uint(interpreter: &mut Interpreter) {
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
+    let mut buf = vec![];
+    let _ = interpreter.input.read_until(b' ', &mut buf).unwrap();
+    let buf: String = String::from_utf8(buf).unwrap();
     interpreter.push_value(buf.trim_end().parse::<u64>().unwrap().into())
 }
 
 pub fn word_get_float(interpreter: &mut Interpreter) {
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
+    let mut buf = vec![];
+    let _ = interpreter.input.read_until(b' ', &mut buf).unwrap();
+    let buf: String = String::from_utf8(buf).unwrap();
     interpreter.push_value(buf.trim_end().parse::<f64>().unwrap().into())
 }
