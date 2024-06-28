@@ -1,4 +1,7 @@
+use std::{collections::HashMap, process::exit};
+
 use crate::{
+    built_in_words::*,
     errors, lexer,
     stack::{self, Stack},
 };
@@ -67,17 +70,32 @@ impl std::fmt::Display for StackValue {
 pub struct Interpreter<'a> {
     lexer: lexer::Lexer<'a>,
     stack: stack::Stack<StackValue>,
+    builtins: HashMap<String, BuiltInAction>,
 }
+
+type BuiltInAction = fn(&mut Interpreter);
 
 impl<'a> Interpreter<'a> {
     pub fn new(lexer: lexer::Lexer<'a>) -> Self {
         Self {
             lexer,
             stack: stack::Stack::new(),
+            builtins: HashMap::new(),
         }
     }
 
+    fn add_word(&mut self, name: String, func: BuiltInAction) {
+        self.builtins.insert(name, func);
+    }
+
     pub fn run(&mut self) -> Result<(), errors::EmptyStackError> {
+        self.add_word("drop".to_string(), word_drop);
+        self.add_word("dup".to_string(), word_dup);
+        self.add_word("print".to_string(), word_print);
+        self.add_word("get_line".to_string(), word_get_line);
+        self.add_word("get_int".to_string(), word_get_int);
+        self.add_word("get_uint".to_string(), word_get_uint);
+        self.add_word("get_float".to_string(), word_get_float);
         use lexer::ILToken;
         while let Some(token) = self.lexer.next() {
             match token {
@@ -91,41 +109,11 @@ impl<'a> Interpreter<'a> {
                     let b = self.pop_value().unwrap();
                     self.push_value(StackValue::Float(op.evaluate(a, b)));
                 }
-                ILToken::Symbol(name) => match name.as_str() {
-                    "drop" => {
-                        self.pop_value();
-                    }
-                    "dup" => {
-                        let t = self.pop_value().unwrap();
-                        self.push_value(t.clone());
-                        self.push_value(t.clone());
-                    }
-                    "print" => {
-                        let t = self.pop_value().unwrap();
-                        println!("{}", t)
-                    }
-                    "get_line" => {
-                        let mut buf = String::new();
-                        std::io::stdin().read_line(&mut buf).unwrap();
-                        self.push_value(buf.into())
-                    }
-                    "get_int" => {
-                        let mut buf = String::new();
-                        std::io::stdin().read_line(&mut buf).unwrap();
-                        self.push_value(buf.trim_end().parse::<i64>().unwrap().into())
-                    }
-                    "get_uint" => {
-                        let mut buf = String::new();
-                        std::io::stdin().read_line(&mut buf).unwrap();
-                        self.push_value(buf.trim_end().parse::<u64>().unwrap().into())
-                    }
-                    "get_float" => {
-                        let mut buf = String::new();
-                        std::io::stdin().read_line(&mut buf).unwrap();
-                        self.push_value(buf.trim_end().parse::<f64>().unwrap().into())
-                    }
-                    _ => {
-                        eprintln!("Unknown word: {}", name)
+                ILToken::Symbol(name) => match self.builtins.get(&name) {
+                    Some(t) => (t)(self),
+                    None => {
+                        eprintln!("Unknown word: {}", name);
+                        exit(1)
                     }
                 },
             }
@@ -133,14 +121,14 @@ impl<'a> Interpreter<'a> {
         Ok(())
     }
 
-    fn push_value(&mut self, value: StackValue) {
+    pub fn push_value(&mut self, value: StackValue) {
         match value {
             StackValue::String(str) => self.stack.push(StackValue::String(str.to_string())),
             _ => self.stack.push(value),
         }
     }
 
-    fn pop_value(&mut self) -> Option<StackValue> {
+    pub fn pop_value(&mut self) -> Option<StackValue> {
         self.stack.pop()
     }
 

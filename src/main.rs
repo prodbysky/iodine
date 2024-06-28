@@ -1,3 +1,4 @@
+mod built_in_words;
 mod errors;
 mod interpreter;
 mod lexer;
