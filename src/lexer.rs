@@ -1,12 +1,6 @@
-use crate::{
-    errors::{NumberParseError, UnterminatedStringError},
-    interpreter::StackValue,
-};
+use crate::errors::{NumberParseError, UnterminatedStringError};
 
-use std::{
-    iter::Peekable,
-    str::{Chars, FromStr},
-};
+use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
 pub struct Lexer<'a> {
@@ -22,28 +16,6 @@ enum Token<'a> {
     StringLiteral(&'a str),
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Operator {
-    Add,
-    Subtract,
-    Divide,
-    Multiply,
-}
-
-impl Operator {
-    // NOTE: Currently all math operations coerce to f64
-    pub fn evaluate(&self, a: StackValue, b: StackValue) -> f64 {
-        let a: f64 = a.into();
-        let b: f64 = b.into();
-        match &self {
-            Self::Add => b + a,
-            Self::Subtract => b - a,
-            Self::Divide => b / a,
-            Self::Multiply => b * a,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum ILToken {
     PushString(String),
@@ -51,21 +23,6 @@ pub enum ILToken {
     PushSignedInteger(i64),
     PushFloat(f64),
     Symbol(String),
-    Operator(Operator),
-}
-
-impl FromStr for Operator {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "+" => Ok(Self::Add),
-            "-" => Ok(Self::Subtract),
-            "/" => Ok(Self::Divide),
-            "*" => Ok(Self::Multiply),
-            _ => Err(()),
-        }
-    }
 }
 
 impl<'a> Lexer<'a> {
@@ -236,13 +193,7 @@ impl<'a> Iterator for Lexer<'a> {
                     }
                 }
             }
-            Token::Symbol(name) => {
-                if let Ok(op) = Operator::from_str(name) {
-                    return Some(ILToken::Operator(op));
-                }
-
-                Some(ILToken::Symbol(name.to_string()))
-            }
+            Token::Symbol(name) => Some(ILToken::Symbol(name.to_string())),
         }
     }
 }

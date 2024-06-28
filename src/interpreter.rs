@@ -1,8 +1,9 @@
-use std::{collections::HashMap, process::exit};
+use std::{collections::HashMap, iter::Peekable, process::exit};
 
 use crate::{
     built_in_words::*,
-    errors, lexer,
+    errors,
+    lexer::{self},
     stack::{self, Stack},
 };
 
@@ -68,7 +69,7 @@ impl std::fmt::Display for StackValue {
 
 #[derive(Debug)]
 pub struct Interpreter<'a> {
-    lexer: lexer::Lexer<'a>,
+    pub lexer: Peekable<lexer::Lexer<'a>>,
     stack: stack::Stack<StackValue>,
     builtins: HashMap<String, BuiltInAction>,
 }
@@ -78,7 +79,7 @@ type BuiltInAction = fn(&mut Interpreter);
 impl<'a> Interpreter<'a> {
     pub fn new(lexer: lexer::Lexer<'a>) -> Self {
         Self {
-            lexer,
+            lexer: lexer.peekable(),
             stack: stack::Stack::new(),
             builtins: HashMap::new(),
         }
@@ -93,22 +94,22 @@ impl<'a> Interpreter<'a> {
         self.add_word("dup".to_string(), word_dup);
         self.add_word("print".to_string(), word_print);
         self.add_word("get_line".to_string(), word_get_line);
+
+        self.add_word("+".to_string(), word_add);
+        self.add_word("-".to_string(), word_subtract);
+        self.add_word("/".to_string(), word_divide);
+        self.add_word("*".to_string(), word_multiply);
+
         self.add_word("get_int".to_string(), word_get_int);
         self.add_word("get_uint".to_string(), word_get_uint);
         self.add_word("get_float".to_string(), word_get_float);
         use lexer::ILToken;
         while let Some(token) = self.lexer.next() {
             match token {
-                ILToken::PushString(value) => self.push_value(StackValue::from(value)),
-                ILToken::PushUnsignedInteger(value) => self.push_value(StackValue::from(value)),
-                ILToken::PushSignedInteger(value) => self.push_value(StackValue::from(value)),
-                ILToken::PushFloat(value) => self.push_value(StackValue::from(value)),
-
-                ILToken::Operator(op) => {
-                    let a = self.pop_value().unwrap();
-                    let b = self.pop_value().unwrap();
-                    self.push_value(StackValue::Float(op.evaluate(a, b)));
-                }
+                ILToken::PushString(value) => self.push_value(value.into()),
+                ILToken::PushUnsignedInteger(value) => self.push_value(value.into()),
+                ILToken::PushSignedInteger(value) => self.push_value(value.into()),
+                ILToken::PushFloat(value) => self.push_value(value.into()),
                 ILToken::Symbol(name) => match self.builtins.get(&name) {
                     Some(t) => (t)(self),
                     None => {
