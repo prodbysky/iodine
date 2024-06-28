@@ -4,6 +4,8 @@ mod interpreter;
 mod lexer;
 mod stack;
 
+use std::io::BufReader;
+
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -23,7 +25,11 @@ fn main() {
         return;
     }
     let source = source.unwrap();
-    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source), None, None);
+    let mut interpreter = interpreter::Interpreter::new(
+        lexer::Lexer::new(&source),
+        None,
+        Some(Box::new(BufReader::new(std::io::stdin()))),
+    );
     match interpreter.run() {
         Ok(()) => {}
         Err(e) => eprintln!("{}", e),

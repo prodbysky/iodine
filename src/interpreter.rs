@@ -1,14 +1,13 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
-    iter::Peekable,
     process::exit,
 };
 
 use crate::{
     built_in_words::*,
     errors,
-    lexer::{self},
+    lexer::{self, ILToken},
     stack::{self, Stack},
 };
 
@@ -18,6 +17,7 @@ pub enum StackValue {
     UnsignedInt(u64),
     SignedInt(i64),
     Float(f64),
+    Bool(bool),
 }
 
 impl Default for StackValue {
@@ -50,6 +50,12 @@ impl From<f64> for StackValue {
     }
 }
 
+impl From<bool> for StackValue {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
 impl From<StackValue> for f64 {
     fn from(val: StackValue) -> Self {
         match val {
@@ -61,6 +67,18 @@ impl From<StackValue> for f64 {
     }
 }
 
+impl Into<bool> for StackValue {
+    fn into(self) -> bool {
+        match self {
+            Self::Bool(bool) => bool,
+            Self::UnsignedInt(int) => int != 0,
+            Self::SignedInt(int) => int != 0,
+            Self::Float(flt) => flt != 0.0,
+            Self::String(str) => !str.is_empty(),
+        }
+    }
+}
+
 impl std::fmt::Display for StackValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
@@ -68,28 +86,31 @@ impl std::fmt::Display for StackValue {
             Self::UnsignedInt(num) => write!(f, "{}", num),
             Self::SignedInt(num) => write!(f, "{}", num),
             Self::Float(num) => write!(f, "{}", num),
+            Self::Bool(bool) => write!(f, "{}", bool),
         }
     }
 }
 
-pub struct Interpreter<'a> {
-    pub lexer: Peekable<lexer::Lexer<'a>>,
+pub struct Interpreter {
+    pub tokens: Vec<ILToken>,
+    pub position: usize,
     stack: stack::Stack<StackValue>,
     builtins: HashMap<String, BuiltInAction>,
     pub output: Box<dyn Write>,
     pub input: Box<dyn BufRead>,
 }
 
-type BuiltInAction = fn(&mut Interpreter<'_>);
+type BuiltInAction = fn(&mut Interpreter);
 
-impl<'a> Interpreter<'a> {
+impl<'a> Interpreter {
     pub fn new(
         lexer: lexer::Lexer<'a>,
         output: Option<Box<dyn Write>>,
         input: Option<Box<dyn BufRead>>,
     ) -> Self {
         Self {
-            lexer: lexer.peekable(),
+            tokens: lexer.parse(),
+            position: 0,
             stack: stack::Stack::new(),
             builtins: HashMap::new(),
             output: output.unwrap_or_else(|| Box::new(std::io::stdout())),
@@ -112,16 +133,29 @@ impl<'a> Interpreter<'a> {
         self.add_word("/".to_string(), word_divide);
         self.add_word("*".to_string(), word_multiply);
 
+        self.add_word("<".to_string(), word_less);
+        self.add_word(">".to_string(), word_more);
+        self.add_word("<=".to_string(), word_less_or_equal);
+        self.add_word(">=".to_string(), word_more_or_equal);
+        self.add_word("==".to_string(), word_equal);
+        self.add_word("!=".to_string(), word_not_equal);
+
         self.add_word("get_int".to_string(), word_get_int);
         self.add_word("get_uint".to_string(), word_get_uint);
         self.add_word("get_float".to_string(), word_get_float);
+
         use lexer::ILToken;
-        while let Some(token) = self.lexer.next() {
+        while self.position < self.tokens.len() {
+            let token = self.tokens[self.position].clone();
             match token {
                 ILToken::PushString(value) => self.push_value(value.into()),
                 ILToken::PushUnsignedInteger(value) => self.push_value(value.into()),
                 ILToken::PushSignedInteger(value) => self.push_value(value.into()),
                 ILToken::PushFloat(value) => self.push_value(value.into()),
+                ILToken::If(_) => {
+                    word_if(self);
+                }
+                ILToken::End => {}
                 ILToken::Symbol(name) => match self.builtins.get(&name) {
                     Some(t) => (t)(self),
                     None => {
@@ -130,6 +164,7 @@ impl<'a> Interpreter<'a> {
                     }
                 },
             }
+            self.position += 1;
         }
         Ok(())
     }
@@ -152,6 +187,7 @@ impl<'a> Interpreter<'a> {
 
 #[cfg(test)]
 mod tests {
+    // TODO: Commandline output tests
     use crate::{interpreter::Interpreter, lexer::Lexer, stack::Stack};
 
     use super::StackValue;

@@ -1,4 +1,3 @@
-get_line print
-get_float print
-get_int print
-get_uint print
+18 get_int > if
+    123 print  
+end

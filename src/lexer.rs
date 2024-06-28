@@ -1,4 +1,7 @@
-use crate::errors::{NumberParseError, UnterminatedStringError};
+use crate::{
+    errors::{NumberParseError, UnterminatedStringError},
+    stack::Stack,
+};
 
 use std::{iter::Peekable, str::Chars};
 
@@ -16,13 +19,15 @@ enum Token<'a> {
     StringLiteral(&'a str),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ILToken {
     PushString(String),
     PushUnsignedInteger(u64),
     PushSignedInteger(i64),
     PushFloat(f64),
     Symbol(String),
+    If(usize),
+    End,
 }
 
 impl<'a> Lexer<'a> {
@@ -156,12 +161,8 @@ impl<'a> Lexer<'a> {
         }
         return Some(self.parse_symbol());
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = ILToken;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next_processed(&mut self) -> Option<ILToken> {
         let token = self.next_raw()?;
 
         match token {
@@ -193,8 +194,40 @@ impl<'a> Iterator for Lexer<'a> {
                     }
                 }
             }
-            Token::Symbol(name) => Some(ILToken::Symbol(name.to_string())),
+            Token::Symbol(name) => match name {
+                "if" => Some(ILToken::If(0)),
+                "end" => Some(ILToken::End),
+                _ => Some(ILToken::Symbol(name.to_string())),
+            },
         }
+    }
+
+    fn cross_reference_blocks(program: Vec<ILToken>) -> Vec<ILToken> {
+        let mut result = program.clone();
+        let mut stack: Stack<usize> = Stack::new();
+        for (i, token) in program.iter().enumerate() {
+            match &token {
+                ILToken::End => {
+                    let if_ip = stack.pop().unwrap();
+                    result[if_ip] = ILToken::If(i);
+                }
+                ILToken::If(_) => {
+                    stack.push(i);
+                }
+
+                _ => {}
+            }
+        }
+
+        result
+    }
+
+    pub fn parse(mut self) -> Vec<ILToken> {
+        let mut program = vec![];
+        while let Some(token) = self.next_processed() {
+            program.push(token);
+        }
+        Self::cross_reference_blocks(program)
     }
 }
 
@@ -207,7 +240,7 @@ mod tests {
         let lexer = Lexer::new("");
         let empty: Vec<ILToken> = vec![];
 
-        assert_eq!(empty, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(empty, lexer.parse());
     }
 
     #[test]
@@ -215,7 +248,7 @@ mod tests {
         let lexer = Lexer::new("123");
         let program = vec![ILToken::PushUnsignedInteger(123)];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -223,7 +256,7 @@ mod tests {
         let lexer = Lexer::new("-123");
         let program = vec![ILToken::PushSignedInteger(-123)];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -231,7 +264,7 @@ mod tests {
         let lexer = Lexer::new("-420.69");
         let program = vec![ILToken::PushFloat(-420.69)];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -239,7 +272,7 @@ mod tests {
         let lexer = Lexer::new("\"Lotus\"");
         let program = vec![ILToken::PushString("Lotus".to_string())];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -247,7 +280,7 @@ mod tests {
         let lexer = Lexer::new("Lotus");
         let program = vec![ILToken::Symbol("Lotus".to_string())];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -255,7 +288,7 @@ mod tests {
         let lexer = Lexer::new("6942O"); // Look at it closely
         let program: Vec<ILToken> = vec![];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 
     #[test]
@@ -263,6 +296,6 @@ mod tests {
         let lexer = Lexer::new("\"Lotus");
         let program: Vec<ILToken> = vec![];
 
-        assert_eq!(program, lexer.collect::<Vec<ILToken>>());
+        assert_eq!(program, lexer.parse());
     }
 }
