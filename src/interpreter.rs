@@ -52,6 +52,17 @@ impl From<StackValue> for f64 {
     }
 }
 
+impl std::fmt::Display for StackValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Self::String(str) => write!(f, "{}", str),
+            Self::UnsignedInt(num) => write!(f, "{}", num),
+            Self::SignedInt(num) => write!(f, "{}", num),
+            Self::Float(num) => write!(f, "{}", num),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Interpreter<'a> {
     lexer: lexer::Lexer<'a>,
@@ -88,6 +99,10 @@ impl<'a> Interpreter<'a> {
                         let t = self.pop_value().unwrap();
                         self.push_value(t.clone());
                         self.push_value(t.clone());
+                    }
+                    "print" => {
+                        let t = self.pop_value().unwrap();
+                        println!("{}", t)
                     }
                     _ => {
                         eprintln!("Unknown word: {}", name)
