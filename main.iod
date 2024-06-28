@@ -1,1 +1,4 @@
-420 0.5 * print
+get_line print
+get_float print
+get_int print
+get_uint print

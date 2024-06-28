@@ -104,6 +104,26 @@ impl<'a> Interpreter<'a> {
                         let t = self.pop_value().unwrap();
                         println!("{}", t)
                     }
+                    "get_line" => {
+                        let mut buf = String::new();
+                        std::io::stdin().read_line(&mut buf).unwrap();
+                        self.push_value(buf.into())
+                    }
+                    "get_int" => {
+                        let mut buf = String::new();
+                        std::io::stdin().read_line(&mut buf).unwrap();
+                        self.push_value(buf.trim_end().parse::<i64>().unwrap().into())
+                    }
+                    "get_uint" => {
+                        let mut buf = String::new();
+                        std::io::stdin().read_line(&mut buf).unwrap();
+                        self.push_value(buf.trim_end().parse::<u64>().unwrap().into())
+                    }
+                    "get_float" => {
+                        let mut buf = String::new();
+                        std::io::stdin().read_line(&mut buf).unwrap();
+                        self.push_value(buf.trim_end().parse::<f64>().unwrap().into())
+                    }
                     _ => {
                         eprintln!("Unknown word: {}", name)
                     }
