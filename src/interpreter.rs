@@ -283,12 +283,12 @@ mod tests {
         let mut interpreter = Interpreter::new(
             lexer,
             None,
-            Some(Box::new("Hello -123\r\n 246\r\n 2.0\r\n".as_bytes())),
+            Some(Box::new("Hello\n -123\n 246\n 2.0\n".as_bytes())),
         );
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
-        expected_stack.push("Hello ".to_owned().into()); // NOTE: This is a weird space
+        expected_stack.push("Hello".to_owned().into());
         expected_stack.push((-123_i64).into());
         expected_stack.push(246_u64.into());
         expected_stack.push(2.0.into());
