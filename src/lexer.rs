@@ -47,6 +47,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn next(&mut self) -> Option<char> {
+        self.pos += 1;
+        self.content.next()
+    }
+
     fn parse_number(&mut self) -> Result<Token<'a>, NumberParseError> {
         // TODO: Floats, and negative numbers, and maybe hexadecimal values
         let saved_pos = self.pos;
@@ -54,16 +59,13 @@ impl<'a> Lexer<'a> {
         let mut points = vec![];
 
         if negative {
-            self.content.next();
-            self.pos += 1;
+            self.next();
         }
 
         while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
-            if self.content.next().is_some_and(|x| x == '.') {
+            if self.next().is_some_and(|x| x == '.') {
                 points.push(self.pos - saved_pos);
             }
-
-            self.pos += 1;
         }
 
         let buffer = &self.source[saved_pos..self.pos];
@@ -94,21 +96,19 @@ impl<'a> Lexer<'a> {
         let saved_pos = self.pos;
 
         // Skip opening quote
-        let opening_quote = self.content.next().unwrap();
-        self.pos += 1;
+        let opening_quote = self.next().unwrap();
 
         while let Some(&current_char) = self.content.peek() {
             if current_char == opening_quote {
                 break;
             }
-            self.content.next();
-            self.pos += 1;
+            self.next();
         }
 
         // Skip closing quote
         self.pos += 1;
-
         let buffer = &self.source[saved_pos + 1..self.pos - 1];
+        // NOTE: Can't use self.next() here (things go out of bounds in tests)
         if self.content.next().is_none() {
             return Err(UnterminatedStringError);
         }
@@ -120,8 +120,7 @@ impl<'a> Lexer<'a> {
         let saved_pos = self.pos;
 
         while self.content.peek().is_some_and(|x| !x.is_whitespace()) {
-            self.content.next();
-            self.pos += 1;
+            self.next();
         }
 
         let buffer = &self.source[saved_pos..self.pos];
