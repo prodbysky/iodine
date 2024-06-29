@@ -4,6 +4,12 @@
 ## Inspiration
  - Tsoding's [Porth](https://gitlab.com/tsoding/porth)
 
+## Installation
+```console
+  cargo install iodine
+```
+
+
 ## Usage
 ```console
   cargo build --release
