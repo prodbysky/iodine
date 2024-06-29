@@ -86,7 +86,7 @@ pub fn word_dup(interpreter: &mut Interpreter) {
 
 pub fn word_print(interpreter: &mut Interpreter) {
     let t = interpreter.pop_value().unwrap();
-    write!(interpreter.output, "{}", t).unwrap();
+    writeln!(interpreter.output, "{}", t).unwrap();
 }
 
 pub fn word_get_line(interpreter: &mut Interpreter) {

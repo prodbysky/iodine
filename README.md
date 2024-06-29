@@ -18,17 +18,21 @@
 
 ## Example
 ```
+fdef square
+    dup *
+fend
+
 1 1 +
 420 0.5 *
 420 dup -
-420 69 > if
-    "420 IS more than 69" print
-end
+420 69 > if "420 IS more than 69" print end
+3 square 9 == if "3^2 is 9!" print end
 ```
 
 ## Features
  - Basic math operations (See [quirks](#quirks))
  - If statements
+ - Functions
  - Comparisons between numbers
  - Signed / unsigned integers, floating point numbers
  - Strings (They don't serve any purpose for now)
