@@ -50,3 +50,12 @@ fend
  2 2 +
  ```
 
+## TODO
+ - Comments
+ - Including files
+ - Don't coerce all numbers to f64 after any math operation
+ - More stack operations
+ - Reading from files
+ - Arrays
+ - Escaped strings
+
