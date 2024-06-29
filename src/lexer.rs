@@ -42,8 +42,7 @@ impl<'a> Lexer<'a> {
 
     fn trim_whitespace(&mut self) {
         while self.content.peek().is_some_and(|x| x.is_whitespace()) {
-            self.content.next();
-            self.pos += 1;
+            self.next();
         }
     }
 
