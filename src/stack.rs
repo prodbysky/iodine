@@ -1,9 +1,9 @@
-#[derive(Debug, PartialEq, Eq, Default)]
-pub struct Stack<T> {
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub struct Stack<T: Clone> {
     vec: Vec<T>,
 }
 
-impl<T> Stack<T> {
+impl<T: Clone> Stack<T> {
     pub fn new() -> Self {
         Self { vec: vec![] }
     }
