@@ -25,6 +25,8 @@ pub enum ILToken {
     PushFloat(f64),
     Symbol(String),
     If(usize),
+    FuncDef(usize),
+    FuncEnd,
     End,
 }
 
@@ -51,7 +53,6 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_number(&mut self) -> Result<Token<'a>, errors::NumberParseError> {
-        // TODO: Floats, and negative numbers, and maybe hexadecimal values
         let saved_pos = self.pos;
         let negative = self.content.peek().is_some_and(|&x| x == '-');
         let mut points = vec![];
@@ -207,6 +208,8 @@ impl<'a> Lexer<'a> {
             Token::Symbol(name) => match name {
                 "if" => Some(ILToken::If(0)),
                 "end" => Some(ILToken::End),
+                "fdef" => Some(ILToken::FuncDef(0)),
+                "fend" => Some(ILToken::FuncEnd),
                 _ => Some(ILToken::Symbol(name.to_string())),
             },
         }

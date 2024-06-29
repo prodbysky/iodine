@@ -1,0 +1,5 @@
+fdef hi
+    "Hello!" print 
+fend
+
+hi
