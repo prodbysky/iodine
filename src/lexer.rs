@@ -1,6 +1,9 @@
 use crate::{errors, stack::Stack};
 
-use std::{iter::Peekable, str::Chars};
+use std::{
+    iter::Peekable,
+    str::{Chars, FromStr},
+};
 
 #[derive(Debug)]
 pub struct Lexer<'a> {
@@ -17,15 +20,55 @@ enum Token<'a> {
     StringLiteral(&'a str),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ArgumentType {
+    Nothing,
+    Bool,
+    String,
+    Number,
+}
+
+impl FromStr for ArgumentType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "!" => Ok(Self::Nothing),
+            "bool" => Ok(Self::Bool),
+            "string" => Ok(Self::String),
+            "number" => Ok(Self::Number),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionInfo {
+    pub name: String,
+    return_type: ArgumentType,
+    pub pos: usize,
+}
+
+impl FunctionInfo {
+    fn new(name: String, return_type: ArgumentType) -> Self {
+        FunctionInfo {
+            name,
+            return_type,
+            pos: 0,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ILToken {
     PushString(String),
     PushUnsignedInteger(u64),
     PushSignedInteger(i64),
     PushFloat(f64),
+    PushBoolean(u64),
     Symbol(String),
     If(usize),
-    FuncDef(String),
+    FuncDef(FunctionInfo),
     FuncEnd,
     End,
     CommentMarker,
@@ -209,11 +252,22 @@ impl<'a> Lexer<'a> {
                 "if" => Some(ILToken::If(0)),
                 "end" => Some(ILToken::End),
                 "fdef" => match self.next_raw() {
-                    Some(Token::Symbol(name)) => Some(ILToken::FuncDef(name.to_string())),
+                    Some(Token::Symbol(name)) => {
+                        self.next_raw();
+                        match self.next_raw().unwrap() {
+                            Token::Symbol(ret_type) => Some(ILToken::FuncDef(FunctionInfo::new(
+                                name.to_string(),
+                                ArgumentType::from_str(ret_type).unwrap(),
+                            ))),
+                            _ => None,
+                        }
+                    }
                     _ => None,
                 },
                 "fend" => Some(ILToken::FuncEnd),
                 "#" => Some(ILToken::CommentMarker),
+                "false" => Some(ILToken::PushBoolean(0)),
+                "true" => Some(ILToken::PushBoolean(1)),
                 _ => Some(ILToken::Symbol(name.to_string())),
             },
         }

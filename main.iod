@@ -1,2 +1,28 @@
+# Returns nothing #
+fdef p : !
+    print
+fend
+
+fdef square : number
+    dup *
+fend
+
+fdef error_str : string
+    "ERROR: no error was found :3"
+fend
+
+fdef does_tsoding_dislike_rust : bool
+    true
+fend
+
 # Prints Hello, world! #
-"Hello, World!" print
+"Hello, World!" p
+
+5 square p
+
+
+error_str p
+
+does_tsoding_dislike_rust if
+    "Tsoding dislikes rust" p
+end

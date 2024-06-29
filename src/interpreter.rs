@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     built_in_words::*,
-    lexer::{self, ILToken},
+    lexer::{self, FunctionInfo, ILToken},
     stack,
 };
 
@@ -98,7 +98,7 @@ pub struct Interpreter {
     pub input: Box<dyn BufRead>,
     stack: stack::Stack<StackValue>,
     return_stack: stack::Stack<usize>,
-    functions: HashMap<String, usize>,
+    functions: HashMap<String, FunctionInfo>,
     builtins: HashMap<String, BuiltInAction>,
     time: bool,
 }
@@ -149,6 +149,7 @@ impl<'a> Interpreter {
                 ILToken::PushUnsignedInteger(value) => self.push_value(value.into()),
                 ILToken::PushSignedInteger(value) => self.push_value(value.into()),
                 ILToken::PushFloat(value) => self.push_value(value.into()),
+                ILToken::PushBoolean(value) => self.push_value(value.into()),
                 ILToken::If(_) => {
                     word_if(self);
                 }
@@ -156,9 +157,9 @@ impl<'a> Interpreter {
                 ILToken::Symbol(name) => match self.builtins.get(&name) {
                     Some(t) => (t)(self),
                     None => match self.functions.get(&name) {
-                        Some(pos) => {
+                        Some(info) => {
                             self.return_stack.push(self.position);
-                            self.position = *pos;
+                            self.position = info.pos;
                         }
                         None => {
                             writeln!(self.output, "Unknown word: {}", name).unwrap();
@@ -166,8 +167,9 @@ impl<'a> Interpreter {
                         }
                     },
                 },
-                ILToken::FuncDef(name) => {
-                    self.functions.insert(name, self.position);
+                ILToken::FuncDef(mut info) => {
+                    info.pos = self.position;
+                    self.functions.insert(info.name.clone(), info);
                     self.skip_function_body();
                 }
                 ILToken::FuncEnd => {
