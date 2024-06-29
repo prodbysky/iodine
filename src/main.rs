@@ -12,6 +12,10 @@ struct Args {
     /// Name of the source file to compile
     #[arg(short)]
     source_file: String,
+
+    /// Time the parsing, tokenization
+    #[arg(long, default_value_t = false)]
+    time: bool,
 }
 
 fn main() {
@@ -24,7 +28,8 @@ fn main() {
         }
     };
 
-    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source), None, None);
+    let mut interpreter =
+        interpreter::Interpreter::new(lexer::Lexer::new(&source, args.time), None, None, args.time);
     match interpreter.run() {
         Ok(()) => {}
         Err(e) => eprintln!("{}", e),

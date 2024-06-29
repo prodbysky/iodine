@@ -7,6 +7,7 @@ pub struct Lexer<'a> {
     content: Peekable<Chars<'a>>,
     source: &'a str,
     pos: usize,
+    time: bool,
 }
 
 #[derive(Debug)]
@@ -28,12 +29,13 @@ pub enum ILToken {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(string: &'a str) -> Self {
+    pub fn new(string: &'a str, time: bool) -> Self {
         let string = string.trim();
         Self {
             content: string.chars().peekable(),
             source: string,
             pos: 0,
+            time,
         }
     }
 
@@ -232,6 +234,23 @@ impl<'a> Lexer<'a> {
 
     pub fn parse(mut self) -> Vec<ILToken> {
         let mut program = vec![];
+        if self.time {
+            let mut now = std::time::Instant::now();
+
+            while let Some(token) = self.next_processed() {
+                program.push(token);
+            }
+
+            let mut elapsed = now.elapsed();
+            eprintln!("Parsing program took: {:?}", elapsed);
+
+            now = std::time::Instant::now();
+            let tokens = Self::cross_reference_blocks(program);
+            elapsed = now.elapsed();
+            eprintln!("Cross referencing blocks took: {:?}", elapsed);
+            return tokens;
+        }
+
         while let Some(token) = self.next_processed() {
             program.push(token);
         }
@@ -245,7 +264,7 @@ mod tests {
 
     #[test]
     fn empty_program() {
-        let lexer = Lexer::new("");
+        let lexer = Lexer::new("", false);
         let empty: Vec<ILToken> = vec![];
 
         assert_eq!(empty, lexer.parse());
@@ -253,7 +272,7 @@ mod tests {
 
     #[test]
     fn parse_u64() {
-        let lexer = Lexer::new("123");
+        let lexer = Lexer::new("123", false);
         let program = vec![ILToken::PushUnsignedInteger(123)];
 
         assert_eq!(program, lexer.parse());
@@ -261,7 +280,7 @@ mod tests {
 
     #[test]
     fn parse_i64() {
-        let lexer = Lexer::new("-123");
+        let lexer = Lexer::new("-123", false);
         let program = vec![ILToken::PushSignedInteger(-123)];
 
         assert_eq!(program, lexer.parse());
@@ -269,7 +288,7 @@ mod tests {
 
     #[test]
     fn parse_f64() {
-        let lexer = Lexer::new("-420.69");
+        let lexer = Lexer::new("-420.69", false);
         let program = vec![ILToken::PushFloat(-420.69)];
 
         assert_eq!(program, lexer.parse());
@@ -277,7 +296,7 @@ mod tests {
 
     #[test]
     fn parse_string() {
-        let lexer = Lexer::new("\"Lotus\"");
+        let lexer = Lexer::new("\"Lotus\"", false);
         let program = vec![ILToken::PushString("Lotus".to_string())];
 
         assert_eq!(program, lexer.parse());
@@ -285,7 +304,7 @@ mod tests {
 
     #[test]
     fn parse_symbol() {
-        let lexer = Lexer::new("Lotus");
+        let lexer = Lexer::new("Lotus", false);
         let program = vec![ILToken::Symbol("Lotus".to_string())];
 
         assert_eq!(program, lexer.parse());
@@ -293,7 +312,7 @@ mod tests {
 
     #[test]
     fn invalid_number() {
-        let lexer = Lexer::new("6942O"); // Look at it closely
+        let lexer = Lexer::new("6942O", false); // Look at it closely
         let program: Vec<ILToken> = vec![];
 
         assert_eq!(program, lexer.parse());
@@ -301,7 +320,7 @@ mod tests {
 
     #[test]
     fn unterminated_string() {
-        let lexer = Lexer::new("\"Lotus");
+        let lexer = Lexer::new("\"Lotus", false);
         let program: Vec<ILToken> = vec![];
 
         assert_eq!(program, lexer.parse());

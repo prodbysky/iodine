@@ -1,14 +1,14 @@
 use std::{
     collections::HashMap,
+    fmt::Result,
     io::{BufRead, BufReader, Write},
     process::exit,
 };
 
 use crate::{
     built_in_words::*,
-    errors,
     lexer::{self, ILToken},
-    stack::{self, Stack},
+    stack,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -67,14 +67,14 @@ impl From<StackValue> for f64 {
     }
 }
 
-impl Into<bool> for StackValue {
-    fn into(self) -> bool {
-        match self {
-            Self::Bool(bool) => bool,
-            Self::UnsignedInt(int) => int != 0,
-            Self::SignedInt(int) => int != 0,
-            Self::Float(flt) => flt != 0.0,
-            Self::String(str) => !str.is_empty(),
+impl From<StackValue> for bool {
+    fn from(value: StackValue) -> Self {
+        match value {
+            StackValue::Bool(bool) => bool,
+            StackValue::UnsignedInt(int) => int != 0,
+            StackValue::SignedInt(int) => int != 0,
+            StackValue::Float(flt) => flt != 0.0,
+            StackValue::String(str) => !str.is_empty(),
         }
     }
 }
@@ -98,6 +98,7 @@ pub struct Interpreter {
     builtins: HashMap<String, BuiltInAction>,
     pub output: Box<dyn Write>,
     pub input: Box<dyn BufRead>,
+    time: bool,
 }
 
 type BuiltInAction = fn(&mut Interpreter);
@@ -107,6 +108,7 @@ impl<'a> Interpreter {
         lexer: lexer::Lexer<'a>,
         output: Option<Box<dyn Write>>,
         input: Option<Box<dyn BufRead>>,
+        time: bool,
     ) -> Self {
         Self {
             tokens: lexer.parse(),
@@ -115,6 +117,7 @@ impl<'a> Interpreter {
             builtins: HashMap::new(),
             output: output.unwrap_or_else(|| Box::new(std::io::stdout())),
             input: input.unwrap_or_else(|| Box::new(BufReader::new(std::io::stdin()))),
+            time,
         }
     }
 
@@ -122,28 +125,7 @@ impl<'a> Interpreter {
         self.builtins.insert(name, func);
     }
 
-    pub fn run(&mut self) -> Result<(), errors::EmptyStackError> {
-        self.add_word("drop".to_string(), word_drop);
-        self.add_word("dup".to_string(), word_dup);
-        self.add_word("print".to_string(), word_print);
-        self.add_word("get_line".to_string(), word_get_line);
-
-        self.add_word("+".to_string(), word_add);
-        self.add_word("-".to_string(), word_subtract);
-        self.add_word("/".to_string(), word_divide);
-        self.add_word("*".to_string(), word_multiply);
-
-        self.add_word("<".to_string(), word_less);
-        self.add_word(">".to_string(), word_more);
-        self.add_word("<=".to_string(), word_less_or_equal);
-        self.add_word(">=".to_string(), word_more_or_equal);
-        self.add_word("==".to_string(), word_equal);
-        self.add_word("!=".to_string(), word_not_equal);
-
-        self.add_word("get_int".to_string(), word_get_int);
-        self.add_word("get_uint".to_string(), word_get_uint);
-        self.add_word("get_float".to_string(), word_get_float);
-
+    fn interpret(&mut self) -> Result {
         use lexer::ILToken;
         while self.position < self.tokens.len() {
             let token = self.tokens[self.position].clone();
@@ -169,6 +151,39 @@ impl<'a> Interpreter {
         Ok(())
     }
 
+    pub fn run(&mut self) -> Result {
+        self.add_word("drop".to_string(), word_drop);
+        self.add_word("dup".to_string(), word_dup);
+        self.add_word("print".to_string(), word_print);
+        self.add_word("get_line".to_string(), word_get_line);
+
+        self.add_word("+".to_string(), word_add);
+        self.add_word("-".to_string(), word_subtract);
+        self.add_word("/".to_string(), word_divide);
+        self.add_word("*".to_string(), word_multiply);
+
+        self.add_word("<".to_string(), word_less);
+        self.add_word(">".to_string(), word_more);
+        self.add_word("<=".to_string(), word_less_or_equal);
+        self.add_word(">=".to_string(), word_more_or_equal);
+        self.add_word("==".to_string(), word_equal);
+        self.add_word("!=".to_string(), word_not_equal);
+
+        self.add_word("get_int".to_string(), word_get_int);
+        self.add_word("get_uint".to_string(), word_get_uint);
+        self.add_word("get_float".to_string(), word_get_float);
+
+        if self.time {
+            let now = std::time::Instant::now();
+            let result = self.interpret();
+            let elapsed = now.elapsed();
+            eprintln!("Running program took: {:?}", elapsed);
+
+            return result;
+        }
+        self.interpret()
+    }
+
     pub fn push_value(&mut self, value: StackValue) {
         match value {
             StackValue::String(str) => self.stack.push(StackValue::String(str.to_string())),
@@ -180,7 +195,8 @@ impl<'a> Interpreter {
         self.stack.pop()
     }
 
-    pub fn get_stack(&self) -> &Stack<StackValue> {
+    #[cfg(test)]
+    pub fn get_stack(&self) -> &stack::Stack<StackValue> {
         &self.stack
     }
 }
@@ -194,8 +210,8 @@ mod tests {
 
     #[test]
     fn empty_program() {
-        let lexer = Lexer::new("");
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new("", false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let expected_stack: Stack<StackValue> = Stack::new();
@@ -206,8 +222,8 @@ mod tests {
     #[test]
     fn pushing_numbers() {
         let src = "0 1 2 3 4 5 6 7 8 9";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
@@ -221,8 +237,8 @@ mod tests {
     #[test]
     fn pushing_strings() {
         let src = "\"Hello :D\"";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
@@ -234,8 +250,8 @@ mod tests {
     #[test]
     fn mathematics() {
         let src = "1 1 + 3 1 - 1 2 * 8 4 /";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
@@ -249,8 +265,8 @@ mod tests {
     #[test]
     fn drop() {
         let src = "6 9 9 drop";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
@@ -263,8 +279,8 @@ mod tests {
     #[test]
     fn dup() {
         let src = "6 9 9 dup";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
@@ -279,11 +295,12 @@ mod tests {
     #[test]
     fn input() {
         let src = "get_line get_int get_uint get_float";
-        let lexer = Lexer::new(src);
+        let lexer = Lexer::new(src, false);
         let mut interpreter = Interpreter::new(
             lexer,
             None,
             Some(Box::new("Hello\n -123\n 246\n 2.0\n".as_bytes())),
+            false,
         );
         interpreter.run().unwrap();
 
@@ -299,8 +316,8 @@ mod tests {
     #[test]
     fn if_statement() {
         let src = "18 15 > if \"You are underage\" end";
-        let lexer = Lexer::new(src);
-        let mut interpreter = Interpreter::new(lexer, None, None);
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
 
         let mut expected_stack: Stack<StackValue> = Stack::new();

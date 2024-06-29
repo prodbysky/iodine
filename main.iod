@@ -1,3 +1,0 @@
-18 get_int > if
-    123 print  
-end
