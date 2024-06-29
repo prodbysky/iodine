@@ -9,6 +9,7 @@ repository = "https://github.com/prodbysky/iodine"
 license = "MIT"
 keywords = ["stack-based", "language"]
 categories = ["compilers"]
+exclude = ["main.iod"]
 
 
 
