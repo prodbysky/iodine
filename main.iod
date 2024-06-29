@@ -1,5 +1,5 @@
-fdef hi
-    "Hello!" print 
+fdef ^2
+    dup * 
 fend
 
-hi
+2 ^2 print

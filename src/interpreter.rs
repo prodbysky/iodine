@@ -94,10 +94,12 @@ impl std::fmt::Display for StackValue {
 pub struct Interpreter {
     pub tokens: Vec<ILToken>,
     pub position: usize,
-    stack: stack::Stack<StackValue>,
-    builtins: HashMap<String, BuiltInAction>,
     pub output: Box<dyn Write>,
     pub input: Box<dyn BufRead>,
+    stack: stack::Stack<StackValue>,
+    return_stack: stack::Stack<usize>,
+    functions: HashMap<String, usize>,
+    builtins: HashMap<String, BuiltInAction>,
     time: bool,
 }
 
@@ -113,16 +115,24 @@ impl<'a> Interpreter {
         Self {
             tokens: lexer.parse(),
             position: 0,
-            stack: stack::Stack::new(),
-            builtins: HashMap::new(),
             output: output.unwrap_or_else(|| Box::new(std::io::stdout())),
             input: input.unwrap_or_else(|| Box::new(BufReader::new(std::io::stdin()))),
+            stack: stack::Stack::new(),
+            return_stack: stack::Stack::new(),
+            functions: HashMap::new(),
+            builtins: HashMap::new(),
             time,
         }
     }
 
     fn add_word(&mut self, name: String, func: BuiltInAction) {
         self.builtins.insert(name, func);
+    }
+
+    fn skip_function_body(&mut self) {
+        while self.position < self.tokens.len() && self.tokens[self.position] != ILToken::FuncEnd {
+            self.position += 1;
+        }
     }
 
     fn interpret(&mut self) -> Result {
@@ -140,11 +150,24 @@ impl<'a> Interpreter {
                 ILToken::End => {}
                 ILToken::Symbol(name) => match self.builtins.get(&name) {
                     Some(t) => (t)(self),
-                    None => {
-                        writeln!(self.output, "Unknown word: {}", name).unwrap();
-                        exit(1)
-                    }
+                    None => match self.functions.get(&name) {
+                        Some(pos) => {
+                            self.return_stack.push(self.position);
+                            self.position = *pos;
+                        }
+                        None => {
+                            writeln!(self.output, "Unknown word: {}", name).unwrap();
+                            exit(1)
+                        }
+                    },
                 },
+                ILToken::FuncDef(name) => {
+                    self.functions.insert(name, self.position);
+                    self.skip_function_body();
+                }
+                ILToken::FuncEnd => {
+                    self.position = self.return_stack.pop().unwrap();
+                }
             }
             self.position += 1;
         }
@@ -322,6 +345,19 @@ mod tests {
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         expected_stack.push("You are underage".to_owned().into());
+
+        assert_eq!(&expected_stack, interpreter.get_stack());
+    }
+
+    #[test]
+    fn function() {
+        let src = "fdef square dup * fend 2 square";
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
+        interpreter.run().unwrap();
+
+        let mut expected_stack: Stack<StackValue> = Stack::new();
+        expected_stack.push(4.0.into());
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }

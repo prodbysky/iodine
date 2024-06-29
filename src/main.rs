@@ -16,6 +16,11 @@ struct Args {
     /// Time the parsing, tokenization
     #[arg(long, default_value_t = false)]
     time: bool,
+
+    /// Do not interpret the program, and output the parsed program
+    /// For debug purposes
+    #[arg(long, default_value_t = false)]
+    only_parse: bool,
 }
 
 fn main() {
@@ -27,6 +32,12 @@ fn main() {
             return;
         }
     };
+
+    if args.only_parse {
+        let lexer = lexer::Lexer::new(&source, args.time);
+        eprintln!("{:?}", lexer.parse());
+        return;
+    }
 
     let mut interpreter =
         interpreter::Interpreter::new(lexer::Lexer::new(&source, args.time), None, None, args.time);

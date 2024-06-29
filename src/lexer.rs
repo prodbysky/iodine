@@ -25,7 +25,7 @@ pub enum ILToken {
     PushFloat(f64),
     Symbol(String),
     If(usize),
-    FuncDef(usize),
+    FuncDef(String),
     FuncEnd,
     End,
 }
@@ -208,7 +208,10 @@ impl<'a> Lexer<'a> {
             Token::Symbol(name) => match name {
                 "if" => Some(ILToken::If(0)),
                 "end" => Some(ILToken::End),
-                "fdef" => Some(ILToken::FuncDef(0)),
+                "fdef" => match self.next_raw() {
+                    Some(Token::Symbol(name)) => Some(ILToken::FuncDef(name.to_string())),
+                    _ => None,
+                },
                 "fend" => Some(ILToken::FuncEnd),
                 _ => Some(ILToken::Symbol(name.to_string())),
             },
