@@ -4,8 +4,6 @@ mod interpreter;
 mod lexer;
 mod stack;
 
-use std::io::BufReader;
-
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -13,23 +11,20 @@ use clap::Parser;
 struct Args {
     /// Name of the source file to compile
     #[arg(short)]
-    input: String,
+    source_file: String,
 }
 
 fn main() {
     let args = Args::parse();
-    let source = std::fs::read_to_string(args.input);
+    let source = match std::fs::read_to_string(args.source_file) {
+        Ok(str) => str,
+        Err(e) => {
+            eprintln!("{}", e);
+            return;
+        }
+    };
 
-    if source.is_err() {
-        eprintln!("Failed to read input file because: {}", source.unwrap_err());
-        return;
-    }
-    let source = source.unwrap();
-    let mut interpreter = interpreter::Interpreter::new(
-        lexer::Lexer::new(&source),
-        None,
-        Some(Box::new(BufReader::new(std::io::stdin()))),
-    );
+    let mut interpreter = interpreter::Interpreter::new(lexer::Lexer::new(&source), None, None);
     match interpreter.run() {
         Ok(()) => {}
         Err(e) => eprintln!("{}", e),
