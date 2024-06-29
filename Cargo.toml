@@ -1,6 +1,6 @@
 [package]
 name = "iodine"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Stack-based programming language"
 authors = ["prodbysky", "stinta", "kyrbynyt@gmail.com"]
@@ -11,7 +11,9 @@ keywords = ["stack-based", "language"]
 categories = ["compilers"]
 exclude = ["main.iod"]
 
-
+[[bin]]
+name = "iodine"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.7", features = ["derive"] }
