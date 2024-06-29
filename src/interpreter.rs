@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn function() {
-        let src = "fdef square dup * fend 2 square";
+        let src = "fdef square : number dup * fend 2 square";
         let lexer = Lexer::new(src, false);
         let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn comments() {
-        let src = "# Multiply # fdef mul * fend 4 2 mul # Output: 8 #";
+        let src = "# Multiply # fdef mul : number  * fend 4 2 mul # Output: 8 #";
         let lexer = Lexer::new(src, false);
         let mut interpreter = Interpreter::new(lexer, None, None, false);
         interpreter.run().unwrap();

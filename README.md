@@ -18,7 +18,7 @@
 
 ## Example
 ```
-fdef square
+fdef square : number
     dup *
 fend
 
@@ -32,6 +32,7 @@ fend
 ## Features
  - Basic math operations (See [quirks](#quirks))
  - If statements
+ - Function return types
  - Functions
  - Comparisons between numbers
  - Signed / unsigned integers, floating point numbers
