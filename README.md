@@ -36,22 +36,17 @@ fend
  - Comparisons between numbers
  - Signed / unsigned integers, floating point numbers
  - Strings (They don't serve any purpose for now)
- - Dumb comments (See [quirks](#quirks))
+ - Comments
  - Simple stack operations (drop, dup)
 
 ## Quirks
- - Comments are just strings that are immeadiately dropped
- ```
- "This is a comment" drop
- ```
  - Any math operation on any integer type result is a f64:
  ```
- "Output: 4.0" drop
+ # Output: 4.0 #
  2 2 +
  ```
 
 ## TODO
- - Comments
  - Including files
  - Don't coerce all numbers to f64 after any math operation
  - More stack operations

@@ -28,6 +28,7 @@ pub enum ILToken {
     FuncDef(String),
     FuncEnd,
     End,
+    CommentMarker,
 }
 
 impl<'a> Lexer<'a> {
@@ -149,7 +150,6 @@ impl<'a> Lexer<'a> {
         let mut cloned = self.content.clone();
         cloned.next();
         let next_char = cloned.next();
-
         if current_char == '"' || current_char == '\'' {
             match self.parse_string() {
                 Ok(str) => return Some(str),
@@ -213,6 +213,7 @@ impl<'a> Lexer<'a> {
                     _ => None,
                 },
                 "fend" => Some(ILToken::FuncEnd),
+                "#" => Some(ILToken::CommentMarker),
                 _ => Some(ILToken::Symbol(name.to_string())),
             },
         }

@@ -130,7 +130,12 @@ impl<'a> Interpreter {
     }
 
     fn skip_function_body(&mut self) {
-        while self.position < self.tokens.len() && self.tokens[self.position] != ILToken::FuncEnd {
+        self.skip_until(ILToken::FuncEnd);
+    }
+
+    fn skip_until(&mut self, token: ILToken) {
+        self.position += 1;
+        while self.position < self.tokens.len() && self.tokens[self.position] != token {
             self.position += 1;
         }
     }
@@ -167,6 +172,9 @@ impl<'a> Interpreter {
                 }
                 ILToken::FuncEnd => {
                     self.position = self.return_stack.pop().unwrap();
+                }
+                ILToken::CommentMarker => {
+                    self.skip_until(ILToken::CommentMarker);
                 }
             }
             self.position += 1;
@@ -358,6 +366,19 @@ mod tests {
 
         let mut expected_stack: Stack<StackValue> = Stack::new();
         expected_stack.push(4.0.into());
+
+        assert_eq!(&expected_stack, interpreter.get_stack());
+    }
+
+    #[test]
+    fn comments() {
+        let src = "# Multiply # fdef mul * fend 4 2 mul # Output: 8 #";
+        let lexer = Lexer::new(src, false);
+        let mut interpreter = Interpreter::new(lexer, None, None, false);
+        interpreter.run().unwrap();
+
+        let mut expected_stack: Stack<StackValue> = Stack::new();
+        expected_stack.push(8.0.into());
 
         assert_eq!(&expected_stack, interpreter.get_stack());
     }
