@@ -2,6 +2,15 @@
 name = "iodine"
 version = "0.1.0"
 edition = "2021"
+description = "Stack-based programming language"
+authors = ["prodbysky", "stinta", "kyrbynyt@gmail.com"]
+readme = "README.md"
+repository = "https://github.com/prodbysky/iodine"
+license = "MIT"
+keywords = ["stack-based", "language"]
+categories = ["compilers"]
+
+
 
 [dependencies]
 clap = { version = "4.5.7", features = ["derive"] }
