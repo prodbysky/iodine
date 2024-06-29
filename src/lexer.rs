@@ -1,7 +1,4 @@
-use crate::{
-    errors::{NumberParseError, UnterminatedStringError},
-    stack::Stack,
-};
+use crate::{errors, stack::Stack};
 
 use std::{iter::Peekable, str::Chars};
 
@@ -51,7 +48,7 @@ impl<'a> Lexer<'a> {
         self.content.next()
     }
 
-    fn parse_number(&mut self) -> Result<Token<'a>, NumberParseError> {
+    fn parse_number(&mut self) -> Result<Token<'a>, errors::NumberParseError> {
         // TODO: Floats, and negative numbers, and maybe hexadecimal values
         let saved_pos = self.pos;
         let negative = self.content.peek().is_some_and(|&x| x == '-');
@@ -69,12 +66,21 @@ impl<'a> Lexer<'a> {
 
         let buffer = &self.source[saved_pos..self.pos];
 
+        // NOTE: If the only char in number is `-`
         if negative && buffer.len() == 1 {
-            return Err(NumberParseError(buffer.to_string(), 0));
+            return Err(errors::NumberParseError::new(
+                errors::NumberParseErrorType::OnlyNegativeSign,
+                buffer.to_string(),
+                0,
+            ));
         }
 
         if points.len() > 1 {
-            return Err(NumberParseError(buffer.to_string(), points[2]));
+            return Err(errors::NumberParseError::new(
+                errors::NumberParseErrorType::WrongFloat,
+                buffer.to_string(),
+                points[2],
+            ));
         }
 
         for i in negative as usize..buffer.len() {
@@ -83,7 +89,11 @@ impl<'a> Lexer<'a> {
                 continue;
             }
             if c.is_alphabetic() || !c.is_ascii_digit() {
-                return Err(NumberParseError(buffer.to_string(), i));
+                return Err(errors::NumberParseError::new(
+                    errors::NumberParseErrorType::NonNumericChar,
+                    buffer.to_string(),
+                    i,
+                ));
             }
         }
 
@@ -91,7 +101,7 @@ impl<'a> Lexer<'a> {
     }
 
     // TODO: Escaped strings
-    fn parse_string(&mut self) -> Result<Token<'a>, UnterminatedStringError> {
+    fn parse_string(&mut self) -> Result<Token<'a>, errors::UnterminatedStringError> {
         let saved_pos = self.pos;
 
         // Skip opening quote
@@ -109,7 +119,7 @@ impl<'a> Lexer<'a> {
         let buffer = &self.source[saved_pos + 1..self.pos - 1];
         // NOTE: Can't use self.next() here (things go out of bounds in tests)
         if self.content.next().is_none() {
-            return Err(UnterminatedStringError);
+            return Err(errors::UnterminatedStringError);
         }
 
         Ok(Token::StringLiteral(buffer))
